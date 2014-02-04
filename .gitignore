@@ -1,3 +1,7 @@
 *.zip
 *.class
-RefinedMilitaryShovelReplica/assets/minecraft/textures/items/ms*.png
+ms*.png
+/build
+/bin
+/eclipse
+.*

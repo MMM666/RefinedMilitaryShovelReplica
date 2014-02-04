@@ -1,0 +1,16 @@
+[
+{
+  "modid": "tragicVillager",
+  "name": "TragicVillager",
+  "description": "A severe thing is carried out to a villager. ",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authors": ["MMM"],
+  "credits": "created by MMM",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

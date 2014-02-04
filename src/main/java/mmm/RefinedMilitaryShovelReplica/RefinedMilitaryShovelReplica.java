@@ -1,0 +1,208 @@
+package mmm.RefinedMilitaryShovelReplica;
+
+import mmm.lib.DestroyAll.DestroyAllIdentificator;
+import mmm.lib.DestroyAll.DestroyAllManager;
+import mmm.lib.DestroyAll.IDestroyAll;
+import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.init.Items;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.common.config.Configuration;
+import cpw.mods.fml.client.registry.ClientRegistry;
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.Mod.EventHandler;
+import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.registry.GameRegistry;
+import cpw.mods.fml.relauncher.Side;
+
+@Mod(
+		modid	= "refinedMilitaryShovelReplica",
+		name	= "RefinedMilitaryShovelReplica",
+		version	= "1.7.x-srg-1"
+		)
+public class RefinedMilitaryShovelReplica {
+
+	public static boolean isDebugMessage = true;
+	public static boolean isDestroyEnable;
+	/*
+	 * 一括対象の指定。
+	 * 同一文字列内で「,」で区切った場合は同一グループとして処理され、異なるブロックでも一括破壊される。
+	 * 「:」はメタデータの値であり、個別の識別を行う。
+	 * メタデータ識別は上位４ビットがマスク指定となっており反転したものがマスク値として使用される。
+	 */
+	public static String[] DigBlock;
+	public static String[] MineBlock;
+	public static String[] CutBlock;
+	public static int digLimit;
+	public static boolean digUnder;
+	public static int mineLimit;
+	public static boolean mineUnder;
+	public static int cutLimit;
+	public static boolean cutUnder;
+	public static boolean cutOtherDirection;
+	public static boolean cutBreakLeaves;
+	public static boolean cutTheBig;
+
+	public static int MaxDamage = 2;
+
+	public static Item RMRSpadeI;
+	public static Item RMRPickaxeI;
+	public static Item RMRAxeI;
+	public static Item RMRSpadeD;
+	public static Item RMRPickaxeD;
+	public static Item RMRAxeD;
+	public static KeyBinding eventKey;
+
+
+
+	public static void Debug(String pText, Object... pData) {
+		// デバッグメッセージ
+		if (isDebugMessage) {
+			System.out.println(String.format("RMR-" + pText, pData));
+		}
+	}
+
+	protected static void saveConfig() {
+		
+	}
+
+	@Mod.EventHandler
+	public void preInit(FMLPreInitializationEvent pEvent) {
+		// コンフィグの解析・設定
+		Configuration lconf = new Configuration(pEvent.getSuggestedConfigurationFile());
+		lconf.load();
+		isDebugMessage	= lconf.get("RefinedMilitaryShovelReplica", "isDebugMessage", true).getBoolean(true);
+		isDestroyEnable	= lconf.get("RefinedMilitaryShovelReplica", "isStarting", true).getBoolean(true);
+		DigBlock		= lconf.get("RefinedMilitaryShovelReplica", "DigBlock", new String[] {"\"grass:0;dirt:0\""}).getStringList();
+		MineBlock		= lconf.get("RefinedMilitaryShovelReplica", "MineBlock", new String[] {"stone:0"}).getStringList();
+		CutBlock		= lconf.get("RefinedMilitaryShovelReplica", "CutBlock", new String[] {"log", "log2"}).getStringList();
+		
+		digLimit			= lconf.get("RefinedMilitaryShovelReplica", "digLimit", 5).getInt();
+		digUnder			= lconf.get("RefinedMilitaryShovelReplica", "digUnder", true).getBoolean(true);
+		mineLimit			= lconf.get("RefinedMilitaryShovelReplica", "mineLimit", 1).getInt();
+		mineUnder			= lconf.get("RefinedMilitaryShovelReplica", "mineUnder", true).getBoolean(true);
+		cutLimit			= lconf.get("RefinedMilitaryShovelReplica", "cutLimit", 10).getInt();
+		cutUnder			= lconf.get("RefinedMilitaryShovelReplica", "cutUnder", false).getBoolean(false);
+		cutOtherDirection	= lconf.get("RefinedMilitaryShovelReplica", "cutOtherDirection", true).getBoolean(true);
+		cutBreakLeaves		= lconf.get("RefinedMilitaryShovelReplica", "cutBreakLeaves", true).getBoolean(true);
+		cutTheBig			= lconf.get("RefinedMilitaryShovelReplica", "cutTheBig", true).getBoolean(true);
+		lconf.save();
+		
+		// アイテムの登録
+		RMRSpadeI	= new ItemMilitarySpade(Item.ToolMaterial.IRON).setUnlocalizedName("RMRSpadeI").setTextureName("mmm:ms");
+		RMRPickaxeI	= new ItemMilitaryPickaxe(Item.ToolMaterial.IRON).setUnlocalizedName("RMRPickaxeI").setTextureName("mmm:ms2");
+		RMRAxeI		= new ItemMilitaryAxe(Item.ToolMaterial.IRON).setUnlocalizedName("RMRAxeI").setTextureName("mmm:ms3");
+		RMRSpadeD	= new ItemMilitarySpade(Item.ToolMaterial.EMERALD).setUnlocalizedName("RMRSpadeD").setTextureName("mmm:ms_d");
+		RMRPickaxeD	= new ItemMilitaryPickaxe(Item.ToolMaterial.EMERALD).setUnlocalizedName("RMRPickaxeD").setTextureName("mmm:ms2_d");
+		RMRAxeD		= new ItemMilitaryAxe(Item.ToolMaterial.EMERALD).setUnlocalizedName("RMRAxeD").setTextureName("mmm:ms3_d");
+		// 変形の設定
+		((ItemMilitarySpade)RMRSpadeI).nextItem = RMRPickaxeI;
+		((ItemMilitaryPickaxe)RMRPickaxeI).nextItem = RMRAxeI;
+		((ItemMilitaryAxe)RMRAxeI).nextItem = RMRSpadeI;
+		((ItemMilitarySpade)RMRSpadeD).nextItem = RMRPickaxeD;
+		((ItemMilitaryPickaxe)RMRPickaxeD).nextItem = RMRAxeD;
+		((ItemMilitaryAxe)RMRAxeD).nextItem = RMRSpadeD;
+		GameRegistry.registerItem(RMRSpadeI, "RMRSpadeI");
+		GameRegistry.registerItem(RMRPickaxeI, "RMRPickaxeI");
+		GameRegistry.registerItem(RMRAxeI, "RMRAxeI");
+		GameRegistry.registerItem(RMRSpadeD, "RMRSpadeD");
+		GameRegistry.registerItem(RMRPickaxeD, "RMRPickaxeD");
+		GameRegistry.registerItem(RMRAxeD, "RMRAxeD");
+		
+		// Dig
+		analizeString((IDestroyAll)RMRSpadeI, DigBlock);
+		// Mine
+		analizeString((IDestroyAll)RMRPickaxeD, MineBlock);
+		// Cut
+		analizeString((IDestroyAll)RMRAxeI, CutBlock);
+		
+		
+		if (pEvent.getSide() == Side.CLIENT) {
+			// destroyAll切り替えボタン
+			String ls = "key.rmr";
+			eventKey = new KeyBinding(ls, 46, "");
+			ClientRegistry.registerKeyBinding(eventKey);
+		}
+		
+	}
+
+	@Mod.EventHandler
+	public void init(FMLInitializationEvent pEvent) {
+		// 一応ドキュメント上ではここでレシピとかを宣言するらしい。
+		// レシピ
+		GameRegistry.addRecipe(new ItemStack(RMRSpadeI),
+				" # ",
+				"#X#",
+				'#', Items.iron_ingot,
+				'X', Items.iron_shovel
+			);
+		GameRegistry.addRecipe(new ItemStack(RMRSpadeD, 1, 0),
+				" # ",
+				"#X#",
+				'#', Items.diamond,
+				'X', Items.diamond_shovel
+			);
+//		MinecraftForge.EVENT_BUS.register(new RefinedMilitaryShovelReplicaEventHandler());
+		FMLCommonHandler.instance().bus().register(new RefinedMilitaryShovelReplicaEventHandler());
+		
+		// MMMLibのRevisionチェック
+//		MMM_Helper.checkRevision("7");
+//		MMM_Config.checkConfig(this.getClass());
+	}
+
+	/**
+	 * 文字列を解析して対象ブロックを設定する。
+	 * @param pItem
+	 * @param pConfig
+	 */
+	private void analizeString(IDestroyAll pItem, String[] pConfig) {
+		DestroyAllIdentificator ldbi[] = new DestroyAllIdentificator[pConfig.length];
+		for (int li = 0; li < pConfig.length; li++) {
+			ldbi[li] = new DestroyAllIdentificator(pConfig[li]);
+		}
+		pItem.setTargets(ldbi);
+	}
+
+	@EventHandler
+	public void serverStart(FMLServerStartingEvent pEvent) {
+		// ネットワークのハンドラを登録
+		DestroyAllManager.init();
+	}
+
+
+/*
+	@Mod.EventHandler
+	public void ServerConnectionFromClientEvent (FMLNetworkEvent.ServerConnectionFromClientEvent pEvent) {
+		if (!isDestroyEnable) {
+			return;
+		}
+		DestroyData lddata = new DestroyData(serverHandler.playerEntity.worldObj, packet250custompayload.data);
+		if (lddata.destroyAll == null) {
+			return;
+		}
+		Debug("Request DestroyAll:%s", serverHandler.playerEntity.getEntityName());
+		
+		// サーバー側で限界を制限
+		switch (lddata.mode) {
+		case (byte)0x80:
+			// DigAll
+			lddata.maxRangeW = lddata.maxRangeH = Math.min(lddata.maxRangeW, digLimit);
+			break;
+		case (byte)0x81:
+			// MineAll
+			lddata.maxRangeW = lddata.maxRangeH = Math.min(lddata.maxRangeW, mineLimit);
+			break;
+		case (byte)0x82:
+			// CutAll
+			lddata.maxRangeW = Math.min(lddata.maxRangeW, cutLimit);
+			lddata.maxRangeH = 32000;
+			break;
+		}
+		lddata.destroyAll.destroyAll(lddata);
+	}
+*/
+
+}
