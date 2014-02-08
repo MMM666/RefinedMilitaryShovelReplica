@@ -31,17 +31,17 @@ public class GuiRangedSlider extends GuiButton {
 	}
 
 	@Override
-	protected int func_146114_a(boolean flag) {
+	protected int getHoverState(boolean p_146114_1_) {
 		return 0;
-	}
+	};
 
 	@Override
-	protected void func_146119_b(Minecraft minecraft, int i, int j) {
-		if (!field_146125_m) {
+	protected void mouseDragged(Minecraft minecraft, int i, int j) {
+		if (!visible) {
 			return;
 		}
 		if (dragging) {
-			sliderValue = (float) (i - (field_146128_h + 4)) / (float) (field_146120_f - 8);
+			sliderValue = (float) (i - (xPosition + 4)) / (float) (width - 8);
 			if (sliderStep > 0F) {
 				sliderValue = (float)((int)(sliderValue / sliderStep)) * sliderStep;
 			}
@@ -54,15 +54,15 @@ public class GuiRangedSlider extends GuiButton {
 			setDisplayString();
 		}
 		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-		drawTexturedModalRect(field_146128_h + (int) (sliderValue * (float) (field_146120_f - 8)),
-				field_146129_i, 0, 66, 4, 20);
-		drawTexturedModalRect(field_146128_h + (int) (sliderValue * (float) (field_146120_f - 8)) + 4,
-				field_146129_i, 196, 66, 4, 20);
+		drawTexturedModalRect(xPosition + (int) (sliderValue * (float) (width - 8)),
+				yPosition, 0, 66, 4, 20);
+		drawTexturedModalRect(xPosition + (int) (sliderValue * (float) (width - 8)) + 4,
+				yPosition, 196, 66, 4, 20);
 	}
 
 	@Override
-	public boolean func_146116_c(Minecraft minecraft, int i, int j) {
-		if (super.func_146116_c(minecraft, i, j)) {
+	public boolean mousePressed(Minecraft minecraft, int i, int j) {
+		if (super.mousePressed(minecraft, i, j)) {
 //			sliderValue = (float) (i - (xPosition + 4)) / (float) (width - 8);
 //			if (sliderValue < 0.0F) {
 //				sliderValue = 0.0F;
@@ -79,7 +79,7 @@ public class GuiRangedSlider extends GuiButton {
 	}
 
 	@Override
-	public void func_146118_a(int i, int j) {
+	public void mouseReleased(int i, int j) {
 		dragging = false;
 	}
 
@@ -88,7 +88,7 @@ public class GuiRangedSlider extends GuiButton {
 	}
 
 	public GuiRangedSlider setDisplayString() {
-		field_146126_j = String.format(strFormat, prefixStr, getSliderValue());
+		displayString = String.format(strFormat, prefixStr, getSliderValue());
 		return this;
 	}
 

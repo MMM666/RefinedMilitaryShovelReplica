@@ -59,6 +59,16 @@ public class DestroyAllManager {
 	public static int ox;
 	public static int oy;
 	public static int oz;
+	
+	public static boolean isDebugMessage = true;
+
+
+	public static void Debug(String pText, Object... pData) {
+		// デバッグメッセージ
+		if (isDebugMessage) {
+			System.out.println(String.format("DAM-" + pText, pData));
+		}
+	}
 
 
 	public static void init() {
@@ -83,15 +93,15 @@ public class DestroyAllManager {
 	 */
 	public static void sendDestroyAllPacket(Entity pEntity, int pWidth, int pHeight,
 			int pX, int pY, int pZ, int pFlags, DestroyAllIdentificator pIdentificator) {
-		System.out.println("Start DestroyAll.");
+		Debug("Start DestroyAll.");
 		ByteBuf lbuf = Unpooled.buffer();
 		// get block
-		Block lblock = pEntity.worldObj.func_147439_a(pX, pY, pZ);
-		int lblockid = Block.func_149682_b(lblock);
+		Block lblock = pEntity.worldObj.getBlock(pX, pY, pZ);
+		int lblockid = Block.getIdFromBlock(lblock);
 		int lmetadata = pEntity.worldObj.getBlockMetadata(pX, pY, pZ);
 		
 		// EntityID
-		lbuf.writeInt(pEntity.func_145782_y());
+		lbuf.writeInt(pEntity.getEntityId());
 		// Range W H
 		lbuf.writeInt(pWidth);
 		lbuf.writeInt(pHeight);
@@ -106,13 +116,14 @@ public class DestroyAllManager {
 		lbuf.writeByte(pFlags);
 		// TargetBlocks
 		if (pIdentificator != null) {
-			lbuf.writeBytes(pIdentificator.toByte());
+//			lbuf.writeBytes(pIdentificator.toByte());
+			pIdentificator.writeByteBuf(lbuf);
 		}
 		// ChainBlocks
 		if (pIdentificator.chain != null) {
-			lbuf.writeBytes(pIdentificator.chain.toByte());
+//			lbuf.writeBytes(pIdentificator.chain.toByte());
+			pIdentificator.chain.writeByteBuf(lbuf);
 		}
-		
 		FMLProxyPacket lpacket = new FMLProxyPacket(lbuf, packetChannel);
 		serverEventChannel.sendToServer(lpacket);
 	}
@@ -120,34 +131,37 @@ public class DestroyAllManager {
 	@SubscribeEvent
 	public void onGetPacketServer(FMLNetworkEvent.ServerCustomPacketEvent pEvent) {
 		// パケット受信
-		System.out.println("get DestroyAll Packet from Client." + pEvent.packet.channel());
 		if (pEvent.packet.channel().contentEquals(packetChannel)) {
-			System.out.println("get DestroyAll Packet from Client.");
+			Debug("get DestroyAll Packet from Client.");
+/*
 			ByteBuf lbuf = Unpooled.wrappedBuffer(pEvent.packet.payload());
 			
 			lbuf.resetReaderIndex();
 			int lblockid;
-			System.out.println(String.format("EntityID: %d; W/H: %d/ %d; Pos: %d, %d, %d; Block: %d-%d; Flag: %x;",
+			Debug(String.format("EntityID: %d; W/H: %d/ %d; Pos: %d, %d, %d; Block: %d-%d; Flag: %x;",
 					lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
 					lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
 					lblockid = lbuf.readInt(), lbuf.readByte(), lbuf.readByte()
 					));
-			System.out.println(Block.func_149729_e(lblockid).toString());
+			Debug(Block.getBlockById(lblockid).toString());
 
 			
 			lbuf.resetReaderIndex();
+*/
 			if (pEvent.handler instanceof NetHandlerPlayServer) {
 				// プレーヤー以外が発動するのを考慮すべき？
+				defaultDestroyAll(new DestroyAllData(((NetHandlerPlayServer)pEvent.handler).playerEntity, pEvent.packet.payload()));
+/*				
 				EntityPlayerMP lentity;
-				lentity = ((NetHandlerPlayServer)pEvent.handler).field_147369_b;
+				lentity = ((NetHandlerPlayServer)pEvent.handler).playerEntity;
 //				lentity = lentity.worldObj.getEntityByID(lbuf.readInt());
 				lbuf.readInt();
 				defaultDestroyAll(lentity, lbuf.readInt(), lbuf.readInt(),
 						lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
-						Block.func_149729_e(lbuf.readInt()), (int)lbuf.readByte(),
+						Block.getBlockById(lbuf.readInt()), (int)lbuf.readByte(),
 						(int)lbuf.readByte(), new DestroyAllIdentificator(lbuf));
+*/			
 			}
-			
 		}
 	}
 
@@ -169,9 +183,17 @@ public class DestroyAllManager {
 		while ((ldp = destroyList.poll()) != null) {
 			checkAround(pEntity, ldp.X, ldp.Y, ldp.Z, pBlock, pMetadata, pIdentificator, false);
 		}
+	}
+	public void defaultDestroyAll(DestroyAllData pData) {
+		// 標準破壊処理
+		destroyList.clear();
 		
+		checkAround(pData.x, pData.y, pData.z, pData);
 		
-		
+		DestroyPos ldp;
+		while ((ldp = destroyList.poll()) != null) {
+			checkAround(ldp.X, ldp.Y, ldp.Z, pData);
+		}
 	}
 
 	/**
@@ -206,19 +228,48 @@ public class DestroyAllManager {
 		if ((oz - pZ) < rangeWidth) {
 			checkBlock(pEntity, pX, pY, pZ - 1, pBlock, pMeta, pDAI, pTheBig);
 		}
-		if ((pY - oy) < rangeWidth) {
+		if ((pY - oy) < rangeHeight) {
 			checkBlock(pEntity, pX, pY + 1, pZ, pBlock, pMeta, pDAI, pTheBig);
 		}
-		if ((oy - pY) < rangeWidth) {
+		if ((oy - pY) < rangeHeight) {
 			checkBlock(pEntity, pX, pY - 1, pZ, pBlock, pMeta, pDAI, pTheBig);
 		}
 		
+	}
+	private void checkAround(int pX, int pY, int pZ, DestroyAllData pData) {
+		// 周囲をチェックして作業キューへ入れる。
+		if ((pX - ox) < rangeWidth) {
+			checkBlock(pX + 1, pY, pZ, pData);
+		}
+		if ((ox - pX) < rangeWidth) {
+			checkBlock(pX - 1, pY, pZ, pData);
+		}
+		if ((pZ - oz) < rangeWidth) {
+			checkBlock(pX, pY, pZ + 1, pData);
+		}
+		if ((oz - pZ) < rangeWidth) {
+			checkBlock(pX, pY, pZ - 1, pData);
+		}
+		if ((pY - oy) < rangeHeight) {
+			checkBlock(pX, pY + 1, pZ, pData);
+		}
+		if ((oy - pY) < rangeHeight) {
+			checkBlock(pX, pY - 1, pZ, pData);
+		}
 	}
 
 	private boolean checkBlock(EntityPlayerMP pEntity, int pX, int pY, int pZ, Block pBlock, int pMeta, DestroyAllIdentificator pDAI, boolean pTheBig) {
 		if (pDAI.isTargetBlock(pEntity.worldObj, pX, pY, pZ)) {
 			addDestroyList(pX, pY, pZ);
-			pEntity.theItemInWorldManager.uncheckedTryHarvestBlock(pX, pY, pX);
+			pEntity.theItemInWorldManager.tryHarvestBlock(pX, pY, pZ);
+			return true;
+		}
+		return false;
+	}
+	private boolean checkBlock(int pX, int pY, int pZ, DestroyAllData pData) {
+		if (pData.identificator.isTargetBlock(pData.breaker.worldObj, pX, pY, pZ)) {
+			addDestroyList(pX, pY, pZ);
+			pData.breaker.theItemInWorldManager.tryHarvestBlock(pX, pY, pZ);
 			return true;
 		}
 		return false;
@@ -231,6 +282,7 @@ public class DestroyAllManager {
 			return false;
 		}
 		destroyList.offer(lpos);
+		Debug("append:%d,%d,%d", pX, pY, pZ);
 		return true;
 	}
 

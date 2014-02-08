@@ -85,7 +85,7 @@ public class ItemMilitarySpade extends ItemSpade implements IDestroyAll {
 	public boolean onBlockStartBreak(ItemStack itemstack, int X, int Y, int Z, EntityPlayer player) {
 		System.out.println("world:" + player.getClass().toString());
 		if (RefinedMilitaryShovelReplica.isDestroyEnable && (player instanceof EntityPlayerSP)) {
-			Block lblock = player.worldObj.func_147439_a(X, Y, Z);
+			Block lblock = player.worldObj.getBlock(X, Y, Z);
 			int lmetadata = player.worldObj.getBlockMetadata(X, Y, Z);
 			for (int li = 0; li < targetBlocks.length; li++) {
 				if (targetBlocks[li].isTargetBlock(lblock, lmetadata)) {

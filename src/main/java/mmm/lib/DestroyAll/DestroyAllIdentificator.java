@@ -8,6 +8,7 @@ import java.util.List;
 
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.block.Block;
+import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 
 /**
@@ -38,10 +39,14 @@ public class DestroyAllIdentificator {
 			return GameRegistry.findUniqueIdentifierFor(block).toString() + ":" + String.format("0x%02x", metadata);
 		}
 		public byte[] toByte() {
-			ByteBuf lbuf = Unpooled.buffer();
-			lbuf.writeInt(Block.func_149682_b(block));
+			ByteBuf lbuf = Unpooled.buffer(5);
+			lbuf.writeInt(Block.getIdFromBlock(block));
 			lbuf.writeByte(metadata);
 			return lbuf.array();
+		}
+		public void writeByteBuf(ByteBuf pByteBuf) {
+			pByteBuf.writeInt(Block.getIdFromBlock(block));
+			pByteBuf.writeByte(metadata);
 		}
 	}
 
@@ -75,7 +80,7 @@ public class DestroyAllIdentificator {
 			for (String lls : lchain[0].split(";")) {
 				String lts[] = lls.split(":");
 				if (lts.length > 0) {
-					Block lblock = (Block)Block.field_149771_c.getObject(lts[0]);
+					Block lblock = (Block)Block.blockRegistry.getObject(lts[0]);
 					int lmetadata = 0;
 					if (lts.length > 1) {
 						lmetadata = getInt(lts[1]);
@@ -93,13 +98,19 @@ public class DestroyAllIdentificator {
 		this();
 		// Target
 		if (pBuf.isReadable(4)) {
-			for (int li = 0; li < pBuf.readInt(); li++) {
+			for (int li = pBuf.readInt(); li > 0; li--) {
 				add(pBuf.readInt(), pBuf.readByte());
 			}
 		}
 		// Chain
 		if (pBuf.isReadable(4)) {
-			chain = new DestroyAllIdentificator(pBuf);
+			int li = pBuf.readInt();
+			if (li > 0) {
+				chain = new DestroyAllIdentificator(pBuf);
+				for (; li > 0; li--) {
+					chain.add(pBuf.readInt(), pBuf.readByte());
+				}
+			}
 		}
 	}
 
@@ -117,12 +128,13 @@ public class DestroyAllIdentificator {
 	 * @param pMetadata
 	 */
 	public void add(Block pBlock, int pMetadata) {
-		if (!isTargetBlock(pBlock, pMetadata)) {
+		if (pBlock != Blocks.air && !isTargetBlock(pBlock, pMetadata)) {
 			targets.add(new TargetBlock(pBlock, pMetadata));
 		}
 	}
 	public void add(int pBlockID, int pMetadata) {
-		add(Block.func_149729_e(pBlockID), pMetadata);
+		DestroyAllManager.Debug("add:%d-%d", pBlockID, pMetadata);
+		add(Block.getBlockById(pBlockID), pMetadata);
 	}
 
 	public boolean delete(Block pBlock, int pMetadata) {
@@ -159,7 +171,7 @@ public class DestroyAllIdentificator {
 		return false;
 	}
 	public boolean isTargetBlock(World pWorld, int pX, int pY, int pZ) {
-		return isTargetBlock(pWorld.func_147439_a(pX, pY, pZ), pWorld.getBlockMetadata(pX, pY, pZ));
+		return isTargetBlock(pWorld.getBlock(pX, pY, pZ), pWorld.getBlockMetadata(pX, pY, pZ));
 	}
 
 	public boolean isChainBlock(Block pBlock, int pMetadata) {
@@ -169,7 +181,7 @@ public class DestroyAllIdentificator {
 		return false;
 	}
 	public boolean isChainBlock(World pWorld, int pX, int pY, int pZ) {
-		return isChainBlock(pWorld.func_147439_a(pX, pY, pZ), pWorld.getBlockMetadata(pX, pY, pZ));
+		return isChainBlock(pWorld.getBlock(pX, pY, pZ), pWorld.getBlockMetadata(pX, pY, pZ));
 	}
 
 	/**
@@ -193,12 +205,23 @@ public class DestroyAllIdentificator {
 	 * @return
 	 */
 	public byte[] toByte() {
-		ByteBuf lbuf = Unpooled.buffer();
+		ByteBuf lbuf = Unpooled.buffer(4 + targets.size() * 5);
 		lbuf.writeInt(targets.size());
 		for (TargetBlock ltb : targets) {
 			lbuf.writeBytes(ltb.toByte());
 		}
 		return lbuf.array();
+	}
+
+	/**
+	 * パケット送信用にデータを書き込む
+	 * @param pByteBuf
+	 */
+	public void writeByteBuf(ByteBuf pByteBuf) {
+		pByteBuf.writeInt(targets.size());
+		for (TargetBlock ltb : targets) {
+			ltb.writeByteBuf(pByteBuf);
+		}
 	}
 
 }

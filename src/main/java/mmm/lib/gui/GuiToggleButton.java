@@ -17,8 +17,8 @@ public class GuiToggleButton extends GuiButton {
 	}
 
 	@Override
-	protected int func_146114_a(boolean par1) {
-		if (!field_146124_l || isDown) {
+	protected int getHoverState(boolean par1) {
+		if (!enabled || isDown) {
 			return 0;
 		} else if (par1) {
 			return 2;
