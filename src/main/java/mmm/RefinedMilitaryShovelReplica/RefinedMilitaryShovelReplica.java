@@ -1,5 +1,7 @@
 package mmm.RefinedMilitaryShovelReplica;
 
+import java.io.File;
+
 import mmm.lib.DestroyAll.DestroyAllIdentificator;
 import mmm.lib.DestroyAll.DestroyAllManager;
 import mmm.lib.DestroyAll.IDestroyAll;
@@ -27,6 +29,7 @@ public class RefinedMilitaryShovelReplica {
 
 	public static boolean isDebugMessage = true;
 	public static boolean isDestroyEnable;
+	public static boolean isStarting;
 	/*
 	 * 一括対象の指定。
 	 * 同一文字列内で「,」で区切った場合は同一グループとして処理され、異なるブロックでも一括破壊される。
@@ -55,6 +58,7 @@ public class RefinedMilitaryShovelReplica {
 	public static Item RMRPickaxeD;
 	public static Item RMRAxeD;
 	public static KeyBinding eventKey;
+	protected static File configFile;
 
 
 
@@ -65,19 +69,46 @@ public class RefinedMilitaryShovelReplica {
 		}
 	}
 
+	private static String[] getTargets(DestroyAllIdentificator[] pDAI) {
+		String[] ltargets = new String[pDAI.length];
+		for (int li = 0; li < pDAI.length; li++) {
+			ltargets[li] = "\"" + pDAI[li].toString()+ "\"";
+		}
+		return ltargets;
+	}
 	protected static void saveConfig() {
+		Configuration lconf = new Configuration(configFile);
+		lconf.load();
+		lconf.get("RefinedMilitaryShovelReplica", "isDebugMessage", true).set(isDebugMessage);
+		lconf.get("RefinedMilitaryShovelReplica", "isStarting", true).set(isStarting);
+		lconf.get("RefinedMilitaryShovelReplica", "DigBlock", new String[] {""}).set(getTargets(ItemMilitarySpade.targetBlocks));
+		lconf.get("RefinedMilitaryShovelReplica", "MineBlock", new String[] {""}).set(getTargets(ItemMilitaryPickaxe.targetBlocks));
+		lconf.get("RefinedMilitaryShovelReplica", "CutBlock", new String[] {""}).set(getTargets(ItemMilitaryAxe.targetBlocks));
 		
+		lconf.get("RefinedMilitaryShovelReplica", "digLimit", 5).set(digLimit);
+		lconf.get("RefinedMilitaryShovelReplica", "digUnder", true).set(digUnder);
+		lconf.get("RefinedMilitaryShovelReplica", "mineLimit", 1).set(mineLimit);
+		lconf.get("RefinedMilitaryShovelReplica", "mineUnder", true).set(mineUnder);
+		lconf.get("RefinedMilitaryShovelReplica", "cutLimit", 10).set(cutLimit);
+		lconf.get("RefinedMilitaryShovelReplica", "cutUnder", false).set(cutUnder);
+		lconf.get("RefinedMilitaryShovelReplica", "cutOtherDirection", true).set(cutOtherDirection);
+		lconf.get("RefinedMilitaryShovelReplica", "cutBreakLeaves", true).set(cutBreakLeaves);
+		lconf.get("RefinedMilitaryShovelReplica", "cutTheBig", true).set(cutTheBig);
+		lconf.save();
+		Debug("Saveed configure.");
 	}
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent pEvent) {
 		// コンフィグの解析・設定
-		Configuration lconf = new Configuration(pEvent.getSuggestedConfigurationFile());
+		configFile = pEvent.getSuggestedConfigurationFile();
+		Configuration lconf = new Configuration(configFile);
 		lconf.load();
 		isDebugMessage	= lconf.get("RefinedMilitaryShovelReplica", "isDebugMessage", true).getBoolean(true);
-		isDestroyEnable	= lconf.get("RefinedMilitaryShovelReplica", "isStarting", true).getBoolean(true);
-		DigBlock		= lconf.get("RefinedMilitaryShovelReplica", "DigBlock", new String[] {"\"grass:0;dirt:0\""}).getStringList();
-		MineBlock		= lconf.get("RefinedMilitaryShovelReplica", "MineBlock", new String[] {"stone:0"}).getStringList();
+		isStarting		= lconf.get("RefinedMilitaryShovelReplica", "isStarting", true).getBoolean(true);
+		isDestroyEnable = isStarting;
+		DigBlock		= lconf.get("RefinedMilitaryShovelReplica", "DigBlock", new String[] {"\"grass=0;dirt=0\""}).getStringList();
+		MineBlock		= lconf.get("RefinedMilitaryShovelReplica", "MineBlock", new String[] {"stone=0"}).getStringList();
 		CutBlock		= lconf.get("RefinedMilitaryShovelReplica", "CutBlock", new String[] {"log", "log2"}).getStringList();
 		
 		digLimit			= lconf.get("RefinedMilitaryShovelReplica", "digLimit", 5).getInt();
@@ -145,7 +176,6 @@ public class RefinedMilitaryShovelReplica {
 				'#', Items.diamond,
 				'X', Items.diamond_shovel
 			);
-//		MinecraftForge.EVENT_BUS.register(new RefinedMilitaryShovelReplicaEventHandler());
 		FMLCommonHandler.instance().bus().register(new RefinedMilitaryShovelReplicaEventHandler());
 		
 		// MMMLibのRevisionチェック
@@ -171,38 +201,5 @@ public class RefinedMilitaryShovelReplica {
 		// ネットワークのハンドラを登録
 		DestroyAllManager.init();
 	}
-
-
-/*
-	@Mod.EventHandler
-	public void ServerConnectionFromClientEvent (FMLNetworkEvent.ServerConnectionFromClientEvent pEvent) {
-		if (!isDestroyEnable) {
-			return;
-		}
-		DestroyData lddata = new DestroyData(serverHandler.playerEntity.worldObj, packet250custompayload.data);
-		if (lddata.destroyAll == null) {
-			return;
-		}
-		Debug("Request DestroyAll:%s", serverHandler.playerEntity.getEntityName());
-		
-		// サーバー側で限界を制限
-		switch (lddata.mode) {
-		case (byte)0x80:
-			// DigAll
-			lddata.maxRangeW = lddata.maxRangeH = Math.min(lddata.maxRangeW, digLimit);
-			break;
-		case (byte)0x81:
-			// MineAll
-			lddata.maxRangeW = lddata.maxRangeH = Math.min(lddata.maxRangeW, mineLimit);
-			break;
-		case (byte)0x82:
-			// CutAll
-			lddata.maxRangeW = Math.min(lddata.maxRangeW, cutLimit);
-			lddata.maxRangeH = 32000;
-			break;
-		}
-		lddata.destroyAll.destroyAll(lddata);
-	}
-*/
 
 }

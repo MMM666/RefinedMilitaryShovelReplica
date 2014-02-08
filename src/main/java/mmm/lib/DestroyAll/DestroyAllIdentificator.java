@@ -36,7 +36,7 @@ public class DestroyAllIdentificator {
 			return false;
 		}
 		public String toString() {
-			return GameRegistry.findUniqueIdentifierFor(block).toString() + ":" + String.format("0x%02x", metadata);
+			return GameRegistry.findUniqueIdentifierFor(block).toString() + "/" + String.format("0x%02x", metadata);
 		}
 		public byte[] toByte() {
 			ByteBuf lbuf = Unpooled.buffer(5);
@@ -75,12 +75,17 @@ public class DestroyAllIdentificator {
 		if (pParam.startsWith("\"")) {
 			pParam = pParam.substring(1, pParam.length() - 1);
 		}
-		String lchain[] = pParam.split("/");
+		String lchain[] = pParam.split("=");
 		if (lchain.length > 0) {
 			for (String lls : lchain[0].split(";")) {
-				String lts[] = lls.split(":");
+				String lts[] = lls.split("/");
 				if (lts.length > 0) {
-					Block lblock = (Block)Block.blockRegistry.getObject(lts[0]);
+					Block lblock;
+					if (lts[0].startsWith("#")) {
+						lblock = Block.getBlockById(getInt(lts[0].substring(1)));
+					} else {
+						lblock = (Block)Block.blockRegistry.getObject(lts[0]);
+					}
 					int lmetadata = 0;
 					if (lts.length > 1) {
 						lmetadata = getInt(lts[1]);
@@ -94,21 +99,21 @@ public class DestroyAllIdentificator {
 		}
 	}
 
-	public DestroyAllIdentificator(ByteBuf pBuf) {
+	public DestroyAllIdentificator(ByteBuf pBuf, int pTargetOrMeta, int pChainOrMeta) {
 		this();
 		// Target
 		if (pBuf.isReadable(4)) {
 			for (int li = pBuf.readInt(); li > 0; li--) {
-				add(pBuf.readInt(), pBuf.readByte());
+				add(pBuf.readInt(), pBuf.readByte() | pTargetOrMeta);
 			}
 		}
 		// Chain
 		if (pBuf.isReadable(4)) {
 			int li = pBuf.readInt();
 			if (li > 0) {
-				chain = new DestroyAllIdentificator(pBuf);
+				chain = new DestroyAllIdentificator();
 				for (; li > 0; li--) {
-					chain.add(pBuf.readInt(), pBuf.readByte());
+					chain.add(pBuf.readInt(), pBuf.readByte() | pChainOrMeta);
 				}
 			}
 		}
@@ -133,7 +138,7 @@ public class DestroyAllIdentificator {
 		}
 	}
 	public void add(int pBlockID, int pMetadata) {
-		DestroyAllManager.Debug("add:%d-%d", pBlockID, pMetadata);
+//		DestroyAllManager.Debug("add:%d/%d", pBlockID, pMetadata);
 		add(Block.getBlockById(pBlockID), pMetadata);
 	}
 
@@ -195,7 +200,7 @@ public class DestroyAllIdentificator {
 			ls += ltb.toString();
 		}
 		if (chain != null) {
-			ls += "/" + chain.toString();
+			ls += "=" + chain.toString();
 		}
 		return ls;
 	}

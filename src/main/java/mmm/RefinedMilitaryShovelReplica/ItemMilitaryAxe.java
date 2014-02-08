@@ -2,8 +2,12 @@ package mmm.RefinedMilitaryShovelReplica;
 
 import java.util.LinkedList;
 
+import mmm.lib.DestroyAll.DestroyAllData;
 import mmm.lib.DestroyAll.DestroyAllIdentificator;
+import mmm.lib.DestroyAll.DestroyAllManager;
 import mmm.lib.DestroyAll.IDestroyAll;
+import net.minecraft.block.Block;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemAxe;
@@ -190,4 +194,43 @@ public class ItemMilitaryAxe extends ItemAxe implements IDestroyAll {
 		}
 	}
 */
+
+	@Override
+	public boolean onBlockStartBreak(ItemStack itemstack, int X, int Y, int Z, EntityPlayer player) {
+		System.out.println("world:" + player.getClass().toString());
+		if (RefinedMilitaryShovelReplica.isDestroyEnable && (player instanceof EntityPlayerSP)) {
+			Block lblock = player.worldObj.getBlock(X, Y, Z);
+			int lmetadata = player.worldObj.getBlockMetadata(X, Y, Z);
+			int lmet = lmetadata & 0xfc;
+			for (int li = 0; li < targetBlocks.length; li++) {
+				if (targetBlocks[li].isTargetBlock(lblock, lmet)) {
+					RefinedMilitaryShovelReplica.Debug("Start CutgAll.");
+					DestroyAllData ldd = new DestroyAllData();
+					ldd.rangeWidth = RefinedMilitaryShovelReplica.cutLimit;
+					ldd.rangeHeight = 32000;
+					ldd.maxChain = 5;
+					ldd.ox = X;
+					ldd.oy = Y;
+					ldd.oz = Z;
+					ldd.block = lblock;
+					ldd.metadata = lmetadata & 0x07;
+					ldd.isUnder = RefinedMilitaryShovelReplica.cutUnder;
+					ldd.isOtherDirection = RefinedMilitaryShovelReplica.cutOtherDirection;
+					ldd.isBreakLeaves =  RefinedMilitaryShovelReplica.cutBreakLeaves;
+					ldd.isTheBig = RefinedMilitaryShovelReplica.cutTheBig;
+					ldd.isAdvMeta = true;
+					ldd.identificator = targetBlocks[li];
+					DestroyAllManager.sendDestroyAllPacket(ldd);
+				}
+			}
+		}
+		
+		return super.onBlockStartBreak(itemstack, X, Y, Z, player);
+	}
+
+	@Override
+	public DestroyAllData getDestroyAllData() {
+		return new DestroyAllData();
+	}
+
 }

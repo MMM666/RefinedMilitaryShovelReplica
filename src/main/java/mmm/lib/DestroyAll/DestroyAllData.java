@@ -2,62 +2,114 @@ package mmm.lib.DestroyAll;
 
 import io.netty.buffer.ByteBuf;
 
-import java.util.LinkedList;
+/**
+ * 特殊な破壊パターンを実装したい場合は、このクラスを上書きし、<br>
+ * IDestroyAll.getDestroyAllData() で返す。
+ *
+ */
+public class DestroyAllData extends DestroyAllDataBase {
 
-import net.minecraft.block.Block;
-import net.minecraft.entity.player.EntityPlayerMP;
-
-public class DestroyAllData {
-
-	public EntityPlayerMP breaker;
-	public int rangeWidth;
-	public int rangeHeight;
-	public int x;
-	public int y;
-	public int z;
-	public Block block;
-	public int metadata;
-	public int flag;
+	public static final byte Flag_isUnder			= 0x01;
+	public static final byte Flag_isOtherDirection	= 0x02;
+	public static final byte Flag_isBreakLeaves		= 0x04;
+	public static final byte Flag_isTheBig			= 0x08;
+	public static final byte Flag_isAdvMeta			= 0x10;
 	
-	public DestroyAllIdentificator identificator;
-	
-	public LinkedList<int[]> targets;
+	public boolean isUnder;
+	public boolean isOtherDirection;
+	public boolean isBreakLeaves;
+	public boolean isTheBig;
+	public boolean isAdvMeta;
 
 
-	public DestroyAllData(EntityPlayerMP pPlayer, ByteBuf pBuf) {
-		breaker = pPlayer;
-		rangeWidth	= pBuf.readInt();
-		rangeHeight	= pBuf.readInt();
-		x = pBuf.readInt();
-		y = pBuf.readInt();
-		z = pBuf.readInt();
-		block = Block.getBlockById(pBuf.readInt());
-		metadata = (int)pBuf.readByte();
-		flag = pBuf.readByte();
-		identificator = new DestroyAllIdentificator(pBuf);
+	@Override
+	public int getFlags() {
+		int lflag = 0;
+		lflag |= isUnder ? Flag_isUnder : 0;
+		lflag |= isOtherDirection ? Flag_isOtherDirection : 0;
+		lflag |= isBreakLeaves ? Flag_isBreakLeaves : 0;
+		lflag |= isTheBig ? Flag_isTheBig : 0;
+		lflag |= isAdvMeta ? Flag_isAdvMeta : 0;
+		return lflag;
 	}
 
 	@Override
-	public String toString() {
-		return String.format("%s; w:%d, h:%d; pos:%d, %d, %d; %s:0x%02x; flag:%02x; %s",
-				breaker.toString(), rangeWidth, rangeHeight, x, y, z,
-				block.toString(), metadata, flag, identificator.toString());
+	public void setFlags() {
+		isUnder = (flag & Flag_isUnder) > 0;
+		isOtherDirection = (flag & Flag_isOtherDirection) > 0;
+		isBreakLeaves = (flag & Flag_isBreakLeaves) > 0;
+		isTheBig = (flag & Flag_isTheBig) > 0;
+		isAdvMeta = (flag & Flag_isAdvMeta) > 0;
 	}
 
-	public boolean isUnder() {
-		return (flag & DestroyAllManager.Flag_isUnder) > 0;
+	@Override
+	public DestroyAllIdentificator getDestroyAllIdentificator(ByteBuf pBuf) {
+		int ladmeta = isAdvMeta ? metadata : 0;
+		int ltometa = ladmeta | (isOtherDirection ? 0xc0 : 0x00);
+		int lcometa = ladmeta | (isBreakLeaves ? 0x80 : 0x00);
+		return new DestroyAllIdentificator(pBuf, ltometa, lcometa);
 	}
 
-	public boolean isOtherDirection() {
-		return (flag & DestroyAllManager.Flag_isOtherDirection) > 0;
+	/**
+	 * 一括破壊処理として呼ばれる
+	 */
+	@Override
+	public void DestroyAll() {
+		if (!isBreakLeaves) {
+			identificator.chain = null;
+		}
+		super.DestroyAll();
 	}
 
-	public boolean isBreakLeaves() {
-		return (flag & DestroyAllManager.Flag_isBreakLeaves) > 0;
+	@Override
+	protected void checkAround(int pX, int pY, int pZ, int pCount) {
+		// 周囲をチェックして作業キューへ入れる。
+		checkBlock(pX + 1, pY, pZ, pCount);
+		checkBlock(pX - 1, pY, pZ, pCount);
+		checkBlock(pX, pY, pZ + 1, pCount);
+		checkBlock(pX, pY, pZ - 1, pCount);
+		checkBlock(pX, pY + 1, pZ, pCount);
+		checkBlock(pX, pY - 1, pZ, pCount);
+		if (isTheBig) {
+			checkBlock(pX + 1, pY + 1, pZ + 1, pCount);
+			checkBlock(pX + 1, pY + 1, pZ, pCount);
+			checkBlock(pX + 1, pY + 1, pZ - 1, pCount);
+			checkBlock(pX, pY + 1, pZ + 1, pCount);
+			checkBlock(pX, pY + 1, pZ - 1, pCount);
+			checkBlock(pX - 1, pY + 1, pZ + 1, pCount);
+			checkBlock(pX - 1, pY + 1, pZ, pCount);
+			checkBlock(pX - 1, pY + 1, pZ - 1, pCount);
+		}
 	}
 
-	public boolean isTheBig() {
-		return (flag & DestroyAllManager.Flag_isTheBig) > 0;
+	@Override
+	protected void checkAroundChain(int pX, int pY, int pZ, int pCount) {
+		// 周囲をチェックして作業キューへ入れる。
+		if (pCount < maxChain) {
+			checkBlockChain(pX + 1, pY, pZ, pCount);
+			checkBlockChain(pX - 1, pY, pZ, pCount);
+			checkBlockChain(pX, pY, pZ + 1, pCount);
+			checkBlockChain(pX, pY, pZ - 1, pCount);
+			checkBlockChain(pX, pY + 1, pZ, pCount);
+			if (isUnder && pY <= oy) {
+				checkBlockChain(pX, pY - 1, pZ, pCount);
+			}
+		}
+	}
+
+	@Override
+	protected boolean checkBlock(int pX, int pY, int pZ, int pCount) {
+		if (Math.abs(pX - ox) > rangeWidth) return false;
+		if (Math.abs(pZ - oz) > rangeWidth) return false;
+		if (Math.abs(pY - oy) > rangeHeight) return false;
+		if (!isUnder && ((pY - oy) < 0)) return false;
+		
+		if (identificator.isTargetBlock(breaker.worldObj, pX, pY, pZ)) {
+			addDestroyList(pX, pY, pZ, 0);
+			breaker.theItemInWorldManager.tryHarvestBlock(pX, pY, pZ);
+			return true;
+		}
+		return false;
 	}
 
 }

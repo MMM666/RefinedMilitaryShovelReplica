@@ -1,5 +1,6 @@
 package mmm.RefinedMilitaryShovelReplica;
 
+import mmm.lib.DestroyAll.DestroyAllData;
 import mmm.lib.DestroyAll.DestroyAllIdentificator;
 import mmm.lib.DestroyAll.DestroyAllManager;
 import mmm.lib.DestroyAll.IDestroyAll;
@@ -90,36 +91,27 @@ public class ItemMilitarySpade extends ItemSpade implements IDestroyAll {
 			for (int li = 0; li < targetBlocks.length; li++) {
 				if (targetBlocks[li].isTargetBlock(lblock, lmetadata)) {
 					RefinedMilitaryShovelReplica.Debug("Start DigAll.");
-					int llimit = RefinedMilitaryShovelReplica.digLimit;
-					boolean lunder = RefinedMilitaryShovelReplica.digUnder;
-					DestroyAllManager.sendDestroyAllPacket(player, llimit, llimit, X, Y, Z,
-							DestroyAllManager.getFlags(lunder, false, false, false), targetBlocks[li]);
+					DestroyAllData ldd = new DestroyAllData();
+					ldd.rangeWidth = RefinedMilitaryShovelReplica.digLimit;
+					ldd.rangeHeight = RefinedMilitaryShovelReplica.digLimit;
+					ldd.ox = X;
+					ldd.oy = Y;
+					ldd.oz = Z;
+					ldd.block = lblock;
+					ldd.metadata = lmetadata;
+					ldd.isUnder = RefinedMilitaryShovelReplica.digUnder;
+					ldd.identificator = targetBlocks[li];
+					DestroyAllManager.sendDestroyAllPacket(ldd);
 				}
 			}
 		}
 		
 		return super.onBlockStartBreak(itemstack, X, Y, Z, player);
 	}
-/*
+
 	@Override
-	public boolean destroyAll(DestroyData pDData) {
-		pDData.destroyList.clear();
-		pDData.checkAround(pDData.baseX, pDData.baseY, pDData.baseZ, 32000);
-		
-		int lpos[];
-		while ((lpos = pDData.destroyList.poll()) != null) {
-			destroyAround(pDData, lpos[0], lpos[1], lpos[2]);
-		}
-		
-		return true;
+	public DestroyAllData getDestroyAllData() {
+		return new DestroyAllData();
 	}
 
-	protected boolean destroyAround(DestroyData pDData, int pX, int pY, int pZ) {
-		if (pDData.destroyBlock(pX, pY, pZ, true)) {
-			pDData.checkAround(pX, pY, pZ, 32000);
-			return true;
-		}
-		return false;
-	}
-*/
 }

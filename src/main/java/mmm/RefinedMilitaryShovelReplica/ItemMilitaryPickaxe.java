@@ -1,7 +1,11 @@
 package mmm.RefinedMilitaryShovelReplica;
 
+import mmm.lib.DestroyAll.DestroyAllData;
 import mmm.lib.DestroyAll.DestroyAllIdentificator;
+import mmm.lib.DestroyAll.DestroyAllManager;
 import mmm.lib.DestroyAll.IDestroyAll;
+import net.minecraft.block.Block;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemPickaxe;
@@ -70,21 +74,27 @@ public class ItemMilitaryPickaxe extends ItemPickaxe implements IDestroyAll {
 			int X, int Y, int Z, EntityPlayer player) {
 		return super.onBlockStartBreak(itemstack, X, Y, Z, player);
 	}
-/*
+
 	@Override
-	public boolean onBlockStartBreak(ItemStack itemstack, int X, int Y, int Z,
-			EntityPlayer player) {
-		if (RefinedMilitaryShovelReplica.isDestroyEnable && player.isClientWorld()) {
-			for (int li = 0; li < targetBlockIDs.length; li++) {
-				if (targetBlockIDs[li][0] == RefinedMilitaryShovelReplica.selectedblockID) {
-					if (targetMetadatas[li][0] > 15 ||
-							targetMetadatas[li][0] == RefinedMilitaryShovelReplica.selectedMetadata) {
-						byte lflag = RefinedMilitaryShovelReplica.mineUnder ? DestroyData.RMR_Flag_isUnder : 0;
-						DestroyData.sendMessage(0x81, player,
-								RefinedMilitaryShovelReplica.mineLimit,
-								lflag, X, Y, Z, targetBlockIDs[li], targetMetadatas[li]);
-						RefinedMilitaryShovelReplica.Debug("Start MineAll.");
-					}
+	public boolean onBlockStartBreak(ItemStack itemstack, int X, int Y, int Z, EntityPlayer player) {
+		System.out.println("world:" + player.getClass().toString());
+		if (RefinedMilitaryShovelReplica.isDestroyEnable && (player instanceof EntityPlayerSP)) {
+			Block lblock = player.worldObj.getBlock(X, Y, Z);
+			int lmetadata = player.worldObj.getBlockMetadata(X, Y, Z);
+			for (int li = 0; li < targetBlocks.length; li++) {
+				if (targetBlocks[li].isTargetBlock(lblock, lmetadata)) {
+					RefinedMilitaryShovelReplica.Debug("Start MineAll.");
+					DestroyAllData ldd = new DestroyAllData();
+					ldd.rangeWidth = RefinedMilitaryShovelReplica.mineLimit;
+					ldd.rangeHeight = RefinedMilitaryShovelReplica.mineLimit;
+					ldd.ox = X;
+					ldd.oy = Y;
+					ldd.oz = Z;
+					ldd.block = lblock;
+					ldd.metadata = lmetadata;
+					ldd.isUnder = RefinedMilitaryShovelReplica.mineUnder;
+					ldd.identificator = targetBlocks[li];
+					DestroyAllManager.sendDestroyAllPacket(ldd);
 				}
 			}
 		}
@@ -93,24 +103,8 @@ public class ItemMilitaryPickaxe extends ItemPickaxe implements IDestroyAll {
 	}
 
 	@Override
-	public boolean destroyAll(DestroyData pDData) {
-		pDData.destroyList.clear();
-		pDData.checkAround(pDData.baseX, pDData.baseY, pDData.baseZ, 32000);
-		
-		int lpos[];
-		while ((lpos = pDData.destroyList.poll()) != null) {
-			destroyAround(pDData, lpos[0], lpos[1], lpos[2]);
-		}
-		
-		return true;
+	public DestroyAllData getDestroyAllData() {
+		return new DestroyAllData();
 	}
 
-	protected boolean destroyAround(DestroyData pDData, int pX, int pY, int pZ) {
-		if (pDData.destroyBlock(pX, pY, pZ, true)) {
-			pDData.checkAround(pX, pY, pZ, 32000);
-			return true;
-		}
-		return false;
-	}
-*/
 }

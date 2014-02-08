@@ -11,6 +11,7 @@ public interface IDestroyAll {
 	 * @return
 	 */
 //	public boolean destroyAll(DestroyData pDData);
+	public DestroyAllData getDestroyAllData();
 
 	/**
 	 * アイテムのダメージ処理用にsuperを記述する関数。

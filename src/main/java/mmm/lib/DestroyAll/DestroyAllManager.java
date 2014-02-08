@@ -2,11 +2,6 @@ package mmm.lib.DestroyAll;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
-import java.util.LinkedList;
-
-import net.minecraft.block.Block;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.NetHandlerPlayServer;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -21,39 +16,12 @@ import cpw.mods.fml.common.network.internal.FMLProxyPacket;
  */
 public class DestroyAllManager {
 
-	public static final byte Flag_isUnder			= 0x01;
-	public static final byte Flag_isOtherDirection	= 0x02;
-	public static final byte Flag_isBreakLeaves		= 0x04;
-	public static final byte Flag_isTheBig			= 0x08;
-
-
 	public static DestroyAllManager instance;
 	public static String packetChannel = "MMM|DAM";
 	public static FMLEventChannel serverEventChannel;
 
 
-	private class DestroyPos {
-		public int X;
-		public int Y;
-		public int Z;
-		
-		public DestroyPos(int pX, int pY, int pZ) {
-			X = pX;
-			Y = pY;
-			Z = pZ;
-		}
-		
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof DestroyPos) {
-				DestroyPos ldo = (DestroyPos)obj;
-				return (X == ldo.X) && (Y == ldo.Y) && (Z == ldo.Z);
-			}
-			return false;
-		}
-		
-	}
-	public static LinkedList<DestroyPos> destroyList = new LinkedList<DestroyPos>();
+//	public static LinkedList<DestroyPos> destroyList = new LinkedList<DestroyPos>();
 	public static int rangeWidth;
 	public static int rangeHeight;
 	public static int ox;
@@ -80,50 +48,10 @@ public class DestroyAllManager {
 		serverEventChannel.register(instance);
 	}
 
-	/**
-	 * 一括破壊用パケットを送る。
-	 * @param pEntity
-	 * @param pWidth
-	 * @param pHeight
-	 * @param pX
-	 * @param pY
-	 * @param pZ
-	 * @param pFlags
-	 * @param pIdentificator
-	 */
-	public static void sendDestroyAllPacket(Entity pEntity, int pWidth, int pHeight,
-			int pX, int pY, int pZ, int pFlags, DestroyAllIdentificator pIdentificator) {
+	public static void sendDestroyAllPacket(DestroyAllData pData) {
 		Debug("Start DestroyAll.");
 		ByteBuf lbuf = Unpooled.buffer();
-		// get block
-		Block lblock = pEntity.worldObj.getBlock(pX, pY, pZ);
-		int lblockid = Block.getIdFromBlock(lblock);
-		int lmetadata = pEntity.worldObj.getBlockMetadata(pX, pY, pZ);
-		
-		// EntityID
-		lbuf.writeInt(pEntity.getEntityId());
-		// Range W H
-		lbuf.writeInt(pWidth);
-		lbuf.writeInt(pHeight);
-		// Target Pos
-		lbuf.writeInt(pX);
-		lbuf.writeInt(pY);
-		lbuf.writeInt(pZ);
-		// Target Block
-		lbuf.writeInt(lblockid);
-		lbuf.writeByte(lmetadata);
-		// Flags
-		lbuf.writeByte(pFlags);
-		// TargetBlocks
-		if (pIdentificator != null) {
-//			lbuf.writeBytes(pIdentificator.toByte());
-			pIdentificator.writeByteBuf(lbuf);
-		}
-		// ChainBlocks
-		if (pIdentificator.chain != null) {
-//			lbuf.writeBytes(pIdentificator.chain.toByte());
-			pIdentificator.chain.writeByteBuf(lbuf);
-		}
+		pData.writeByteBuf(lbuf);
 		FMLProxyPacket lpacket = new FMLProxyPacket(lbuf, packetChannel);
 		serverEventChannel.sendToServer(lpacket);
 	}
@@ -133,157 +61,16 @@ public class DestroyAllManager {
 		// パケット受信
 		if (pEvent.packet.channel().contentEquals(packetChannel)) {
 			Debug("get DestroyAll Packet from Client.");
-/*
-			ByteBuf lbuf = Unpooled.wrappedBuffer(pEvent.packet.payload());
-			
-			lbuf.resetReaderIndex();
-			int lblockid;
-			Debug(String.format("EntityID: %d; W/H: %d/ %d; Pos: %d, %d, %d; Block: %d-%d; Flag: %x;",
-					lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
-					lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
-					lblockid = lbuf.readInt(), lbuf.readByte(), lbuf.readByte()
-					));
-			Debug(Block.getBlockById(lblockid).toString());
-
-			
-			lbuf.resetReaderIndex();
-*/
 			if (pEvent.handler instanceof NetHandlerPlayServer) {
+				EntityPlayerMP lplayer = ((NetHandlerPlayServer)pEvent.handler).playerEntity;
+				
 				// プレーヤー以外が発動するのを考慮すべき？
-				defaultDestroyAll(new DestroyAllData(((NetHandlerPlayServer)pEvent.handler).playerEntity, pEvent.packet.payload()));
-/*				
-				EntityPlayerMP lentity;
-				lentity = ((NetHandlerPlayServer)pEvent.handler).playerEntity;
-//				lentity = lentity.worldObj.getEntityByID(lbuf.readInt());
-				lbuf.readInt();
-				defaultDestroyAll(lentity, lbuf.readInt(), lbuf.readInt(),
-						lbuf.readInt(), lbuf.readInt(), lbuf.readInt(),
-						Block.getBlockById(lbuf.readInt()), (int)lbuf.readByte(),
-						(int)lbuf.readByte(), new DestroyAllIdentificator(lbuf));
-*/			
+				DestroyAllData ldd = new DestroyAllData();
+				ldd.readbyteBuf(lplayer, pEvent.packet.payload());
+				Debug(ldd.toString());
+				ldd.DestroyAll();
 			}
 		}
-	}
-
-	public void defaultDestroyAll(EntityPlayerMP pEntity, int pWidth, int pHeight,
-			int pX, int pY, int pZ, Block pBlock, int pMetadata, int pFlags,
-			DestroyAllIdentificator pIdentificator) {
-		// 標準破壊処理
-		destroyList.clear();
-		
-		ox = pX;
-		oy = pY;
-		oz = pZ;
-		rangeWidth = pWidth;
-		rangeHeight = pHeight;
-		
-		checkAround(pEntity, pX, pY, pZ, pBlock, pMetadata, pIdentificator, false);
-		
-		DestroyPos ldp;
-		while ((ldp = destroyList.poll()) != null) {
-			checkAround(pEntity, ldp.X, ldp.Y, ldp.Z, pBlock, pMetadata, pIdentificator, false);
-		}
-	}
-	public void defaultDestroyAll(DestroyAllData pData) {
-		// 標準破壊処理
-		destroyList.clear();
-		
-		checkAround(pData.x, pData.y, pData.z, pData);
-		
-		DestroyPos ldp;
-		while ((ldp = destroyList.poll()) != null) {
-			checkAround(ldp.X, ldp.Y, ldp.Z, pData);
-		}
-	}
-
-	/**
-	 * フラグ作成用
-	 * @param pDestroyUnder
-	 * @param pOtherDirection
-	 * @param pChain
-	 * @param pTheBig
-	 * @return
-	 */
-	public static int getFlags(boolean pDestroyUnder, boolean pOtherDirection, boolean pChain, boolean pTheBig) {
-		int lflags = 0;
-		lflags |= pDestroyUnder ? Flag_isUnder : 0;
-		lflags |= pOtherDirection ? Flag_isOtherDirection : 0;
-		lflags |= pChain ? Flag_isBreakLeaves : 0;
-		lflags |= pTheBig ? Flag_isTheBig : 0;
-		
-		return lflags;
-	}
-
-	private void checkAround(EntityPlayerMP pEntity, int pX, int pY, int pZ, Block pBlock, int pMeta, DestroyAllIdentificator pDAI, boolean pTheBig) {
-		// 周囲をチェックして作業キューへ入れる。
-		if ((pX - ox) < rangeWidth) {
-			checkBlock(pEntity, pX + 1, pY, pZ, pBlock, pMeta, pDAI, pTheBig);
-		}
-		if ((ox - pX) < rangeWidth) {
-			checkBlock(pEntity, pX - 1, pY, pZ, pBlock, pMeta, pDAI, pTheBig);
-		}
-		if ((pZ - oz) < rangeWidth) {
-			checkBlock(pEntity, pX, pY, pZ + 1, pBlock, pMeta, pDAI, pTheBig);
-		}
-		if ((oz - pZ) < rangeWidth) {
-			checkBlock(pEntity, pX, pY, pZ - 1, pBlock, pMeta, pDAI, pTheBig);
-		}
-		if ((pY - oy) < rangeHeight) {
-			checkBlock(pEntity, pX, pY + 1, pZ, pBlock, pMeta, pDAI, pTheBig);
-		}
-		if ((oy - pY) < rangeHeight) {
-			checkBlock(pEntity, pX, pY - 1, pZ, pBlock, pMeta, pDAI, pTheBig);
-		}
-		
-	}
-	private void checkAround(int pX, int pY, int pZ, DestroyAllData pData) {
-		// 周囲をチェックして作業キューへ入れる。
-		if ((pX - ox) < rangeWidth) {
-			checkBlock(pX + 1, pY, pZ, pData);
-		}
-		if ((ox - pX) < rangeWidth) {
-			checkBlock(pX - 1, pY, pZ, pData);
-		}
-		if ((pZ - oz) < rangeWidth) {
-			checkBlock(pX, pY, pZ + 1, pData);
-		}
-		if ((oz - pZ) < rangeWidth) {
-			checkBlock(pX, pY, pZ - 1, pData);
-		}
-		if ((pY - oy) < rangeHeight) {
-			checkBlock(pX, pY + 1, pZ, pData);
-		}
-		if ((oy - pY) < rangeHeight) {
-			checkBlock(pX, pY - 1, pZ, pData);
-		}
-	}
-
-	private boolean checkBlock(EntityPlayerMP pEntity, int pX, int pY, int pZ, Block pBlock, int pMeta, DestroyAllIdentificator pDAI, boolean pTheBig) {
-		if (pDAI.isTargetBlock(pEntity.worldObj, pX, pY, pZ)) {
-			addDestroyList(pX, pY, pZ);
-			pEntity.theItemInWorldManager.tryHarvestBlock(pX, pY, pZ);
-			return true;
-		}
-		return false;
-	}
-	private boolean checkBlock(int pX, int pY, int pZ, DestroyAllData pData) {
-		if (pData.identificator.isTargetBlock(pData.breaker.worldObj, pX, pY, pZ)) {
-			addDestroyList(pX, pY, pZ);
-			pData.breaker.theItemInWorldManager.tryHarvestBlock(pX, pY, pZ);
-			return true;
-		}
-		return false;
-	}
-
-	private boolean addDestroyList(int pX, int pY, int pZ) {
-		// 重複チェックしながらスタック
-		DestroyPos lpos = new DestroyPos(pX, pY, pZ);
-		if (destroyList.contains(lpos)) {
-			return false;
-		}
-		destroyList.offer(lpos);
-		Debug("append:%d,%d,%d", pX, pY, pZ);
-		return true;
 	}
 
 }

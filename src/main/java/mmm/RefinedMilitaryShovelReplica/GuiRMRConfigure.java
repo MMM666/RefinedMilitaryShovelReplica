@@ -143,9 +143,10 @@ public class GuiRMRConfigure extends GuiScreen {
 		}
 	}
 */
+
 	@Override
-	protected void mouseClicked(int par1, int par2, int par3) {
-		super.mouseClicked(par1, par2, par3);
+	protected void mouseMovedOrUp(int par1, int par2, int par3) {
+		super.mouseMovedOrUp(par1, par2, par3);
 		
 		RefinedMilitaryShovelReplica.digLimit	= (int)(sliderDig.sliderValue * 10);
 		RefinedMilitaryShovelReplica.mineLimit	= (int)(sliderMine.sliderValue * 10);
