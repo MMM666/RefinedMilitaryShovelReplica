@@ -2,23 +2,21 @@ package mmm.RefinedMilitaryShovelReplica;
 
 import java.io.File;
 
-import mmm.lib.DestroyAll.DestroyAllIdentificator;
-import mmm.lib.DestroyAll.DestroyAllManager;
-import mmm.lib.DestroyAll.IDestroyAll;
-import net.minecraft.client.settings.KeyBinding;
+import mmm.lib.ProxyCommon;
+import mmm.lib.destroyAll.DestroyAllIdentificator;
+import mmm.lib.destroyAll.DestroyAllManager;
+import mmm.lib.destroyAll.IDestroyAll;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.Configuration;
-import cpw.mods.fml.client.registry.ClientRegistry;
-import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
+import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
-import cpw.mods.fml.relauncher.Side;
 
 @Mod(
 		modid	= "refinedMilitaryShovelReplica",
@@ -27,6 +25,9 @@ import cpw.mods.fml.relauncher.Side;
 		)
 public class RefinedMilitaryShovelReplica {
 
+	@SidedProxy(clientSide = "mmm.RefinedMilitaryShovelReplica.ProxyClient", serverSide = "mmm.lib.ProxyCommon")
+	public static ProxyCommon proxy;
+	
 	public static boolean isDebugMessage = true;
 	public static boolean isDestroyEnable;
 	public static boolean isStarting;
@@ -57,7 +58,6 @@ public class RefinedMilitaryShovelReplica {
 	public static Item RMRSpadeD;
 	public static Item RMRPickaxeD;
 	public static Item RMRAxeD;
-	public static KeyBinding eventKey;
 	protected static File configFile;
 
 
@@ -109,7 +109,7 @@ public class RefinedMilitaryShovelReplica {
 		isDestroyEnable = isStarting;
 		DigBlock		= lconf.get("RefinedMilitaryShovelReplica", "DigBlock", new String[] {"\"grass=0;dirt=0\""}).getStringList();
 		MineBlock		= lconf.get("RefinedMilitaryShovelReplica", "MineBlock", new String[] {"stone=0"}).getStringList();
-		CutBlock		= lconf.get("RefinedMilitaryShovelReplica", "CutBlock", new String[] {"log", "log2"}).getStringList();
+		CutBlock		= lconf.get("RefinedMilitaryShovelReplica", "CutBlock", new String[] {"log=leaves/0x80", "log2=leaves2/0x80"}).getStringList();
 		
 		digLimit			= lconf.get("RefinedMilitaryShovelReplica", "digLimit", 5).getInt();
 		digUnder			= lconf.get("RefinedMilitaryShovelReplica", "digUnder", true).getBoolean(true);
@@ -150,14 +150,8 @@ public class RefinedMilitaryShovelReplica {
 		// Cut
 		analizeString((IDestroyAll)RMRAxeI, CutBlock);
 		
-		
-		if (pEvent.getSide() == Side.CLIENT) {
-			// destroyAll切り替えボタン
-			String ls = "key.rmr";
-			eventKey = new KeyBinding(ls, 46, "");
-			ClientRegistry.registerKeyBinding(eventKey);
-		}
-		
+		// SIDE用初期化
+		proxy.init();
 	}
 
 	@Mod.EventHandler
@@ -176,7 +170,7 @@ public class RefinedMilitaryShovelReplica {
 				'#', Items.diamond,
 				'X', Items.diamond_shovel
 			);
-		FMLCommonHandler.instance().bus().register(new RefinedMilitaryShovelReplicaEventHandler());
+//		FMLCommonHandler.instance().bus().register(proxy);
 		
 		// MMMLibのRevisionチェック
 //		MMM_Helper.checkRevision("7");

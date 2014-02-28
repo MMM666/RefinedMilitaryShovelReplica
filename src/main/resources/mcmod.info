@@ -1,8 +1,8 @@
 [
 {
-  "modid": "tragicVillager",
-  "name": "TragicVillager",
-  "description": "A severe thing is carried out to a villager. ",
+  "modid": "refinedMilitaryShovelReplica",
+  "name": "RefinedMilitaryShovelReplica",
+  "description": "Refined Military Shovel Replica. ",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "",
@@ -11,6 +11,9 @@
   "credits": "created by MMM",
   "logoFile": "",
   "screenshots": [],
-  "dependencies": []
+  "useDependencyInformation": "true",
+  "dependencies": ["MMMLib"],
+  "dependants": [],
+  "requiredMods": ["MMMLib"]
 }
 ]

@@ -1,11 +1,10 @@
 package mmm.RefinedMilitaryShovelReplica;
 
-import mmm.lib.DestroyAll.DestroyAllData;
-import mmm.lib.DestroyAll.DestroyAllIdentificator;
-import mmm.lib.DestroyAll.DestroyAllManager;
-import mmm.lib.DestroyAll.IDestroyAll;
+import mmm.lib.destroyAll.DestroyAllData;
+import mmm.lib.destroyAll.DestroyAllIdentificator;
+import mmm.lib.destroyAll.DestroyAllManager;
+import mmm.lib.destroyAll.IDestroyAll;
 import net.minecraft.block.Block;
-import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemSpade;
@@ -84,8 +83,8 @@ public class ItemMilitarySpade extends ItemSpade implements IDestroyAll {
 
 	@Override
 	public boolean onBlockStartBreak(ItemStack itemstack, int X, int Y, int Z, EntityPlayer player) {
-		System.out.println("world:" + player.getClass().toString());
-		if (RefinedMilitaryShovelReplica.isDestroyEnable && (player instanceof EntityPlayerSP)) {
+		if (RefinedMilitaryShovelReplica.isDestroyEnable && player.worldObj.isRemote) {
+			RefinedMilitaryShovelReplica.Debug("world:" + player.getClass().toString());
 			Block lblock = player.worldObj.getBlock(X, Y, Z);
 			int lmetadata = player.worldObj.getBlockMetadata(X, Y, Z);
 			for (int li = 0; li < targetBlocks.length; li++) {
