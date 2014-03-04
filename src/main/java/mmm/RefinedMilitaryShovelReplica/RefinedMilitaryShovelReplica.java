@@ -152,6 +152,10 @@ public class RefinedMilitaryShovelReplica {
 		
 		// SIDE用初期化
 		proxy.init();
+		
+		// ネットワークのハンドラを登録
+		DestroyAllManager.init();
+
 	}
 
 	@Mod.EventHandler
@@ -193,7 +197,7 @@ public class RefinedMilitaryShovelReplica {
 	@EventHandler
 	public void serverStart(FMLServerStartingEvent pEvent) {
 		// ネットワークのハンドラを登録
-		DestroyAllManager.init();
+//		DestroyAllManager.init();
 	}
 
 }
