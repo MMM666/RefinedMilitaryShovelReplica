@@ -35,7 +35,8 @@ public class ItemMilitarySpade extends ItemSpade implements IDestroyAll {
 		// シャベルモードの攻撃力は剣と一緒
 		// damageVsEntity
 		ReflectionHelper.setPrivateValue(ItemTool.class, this,
-				Float.valueOf(4.0F + par2EnumToolMaterial.getDamageVsEntity()), "damageVsEntity");
+				Float.valueOf(4.0F + par2EnumToolMaterial.getDamageVsEntity()),
+				"damageVsEntity", "field_77865_bY");
 	}
 
 	@Override
